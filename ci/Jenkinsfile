@@ -37,38 +37,36 @@ EOF
     stage('Deploy Databricks Job') {
       steps {
         sh '''
-        . venv/bin/activate
-        JOB_NAME="demo_sql_prod"
-        JOB_FILE="jobs/job_sql_warehouse.json"
-        JQ_BIN=/var/jenkins_home/jq
+          . venv/bin/activate
+          JOB_NAME="demo_sql_prod"
+          JOB_FILE="jobs/job_sql_warehouse.json"
+          JQ_BIN=/var/jenkins_home/jq
 
-        # Get existing job ID if present
-        JOB_ID=$(databricks jobs list --output JSON | $JQ_BIN -r \
+          JOB_ID=$(databricks jobs list --output JSON | $JQ_BIN -r \
             --arg n "$JOB_NAME" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
 
-        if [ -z "$JOB_ID" ]; then
+          if [ -z "$JOB_ID" ]; then
             echo "Creating new job..."
             databricks jobs create --json-file "$JOB_FILE"
-        else
+          else
             echo "Updating existing job..."
             databricks jobs reset --job-id "$JOB_ID" --json-file "$JOB_FILE"
-        fi
+          fi
         '''
-  }
-}
+      }
+    }
 
-stage('Run Databricks Job') {
-  steps {
-    sh '''
-      . venv/bin/activate
-      JOB_NAME="demo_sql_prod"
-      JQ_BIN=/var/jenkins_home/jq
-
-      JOB_ID=$(databricks jobs list --output JSON | $JQ_BIN -r \
-        --arg n "$JOB_NAME" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
-
-      echo "Triggering run for job_id: $JOB_ID"
-      databricks jobs run-now --job-id "$JOB_ID"
-    '''
+    stage('Run Databricks Job') {
+      steps {
+        sh '''
+          . venv/bin/activate
+          JOB_NAME="demo_sql_prod"
+          JQ_BIN=/var/jenkins_home/jq
+          JOB_ID=$(databricks jobs list --output JSON | $JQ_BIN -r \
+            --arg n "demo_sql_prod" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
+          databricks jobs run-now --job-id "$JOB_ID"
+        '''
+      }
+    }
   }
 }
