@@ -12,6 +12,8 @@ pipeline {
           . venv/bin/activate
           pip install --upgrade pip
           pip install databricks-cli jq
+          # Install jq binary for JSON parsing
+          apt-get update -y && apt-get install -y jq
           mkdir -p ~/.databricks
           cat > ~/.databricks/config <<EOF
 [DEFAULT]
