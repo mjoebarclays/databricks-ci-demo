@@ -1,0 +1,16 @@
+{
+  "name": "demo_sql_prod",
+  "max_concurrent_runs": 1,
+  "tasks": [
+    {
+      "task_key": "run_sql",
+      "sql_task": {
+        "warehouse_id": "c2cf2b5947fcf5e6",
+        "query": {
+          "query_text": "SELECT current_date() AS as_of_date, 42 AS demo_metric"
+        }
+      },
+      "timeout_seconds": 3600
+    }
+  ]
+}
