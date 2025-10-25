@@ -7,9 +7,9 @@
       "sql_task": {
         "warehouse_id": "c2cf2b5947fcf5e6",
         "query_id": "2619633994000120"
-        }
       },
       "timeout_seconds": 3600
     }
   ]
 }
+

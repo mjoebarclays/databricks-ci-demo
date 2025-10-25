@@ -5,24 +5,34 @@ pipeline {
     DATABRICKS_TOKEN = credentials('DB_TOKEN_PROD')
   }
   stages {
-    stage('Setup CLI') {
-      steps {
-        sh '''
-          python3 -m venv venv
-          . venv/bin/activate
-          pip install --upgrade pip
-          pip install databricks-cli jq
-          # Install jq binary for JSON parsing
-          apt-get update -y && apt-get install -y jq
-          mkdir -p ~/.databricks
-          cat > ~/.databricks/config <<EOF
+    tage('Setup CLI') {
+  steps {
+    sh '''
+      python3 -m venv venv
+      . venv/bin/activate
+      pip install --upgrade pip
+      pip install databricks-cli
+
+      # Download jq binary manually (no root needed)
+      JQ_BIN=/var/jenkins_home/jq
+      if [ ! -f "$JQ_BIN" ]; then
+        echo "Downloading jq binary..."
+        curl -L -o "$JQ_BIN" https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        chmod +x "$JQ_BIN"
+      fi
+      export PATH=$PATH:/var/jenkins_home
+
+      mkdir -p ~/.databricks
+      cat > ~/.databricks/config <<EOF
 [DEFAULT]
 host = $DATABRICKS_HOST
 token = $DATABRICKS_TOKEN
 EOF
-        '''
-      }
-    }
+
+      databricks jobs configure --version=2.1
+    '''
+  }
+}
 
     stage('Deploy Databricks Job') {
       steps {
