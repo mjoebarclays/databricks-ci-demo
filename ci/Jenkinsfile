@@ -1,0 +1,98 @@
+pipeline {
+  agent any
+  environment {
+    DATABRICKS_HOST  = credentials('DB_HOST_PROD')
+    DATABRICKS_TOKEN = credentials('DB_TOKEN_PROD')
+    REPO_WS_PATH     = 'Workspace/Repos/databricks-ci-demo'   // workspace path
+  }
+  stages {
+    stage('Setup CLI') {
+      steps {
+        sh '''
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install --upgrade pip
+          pip install databricks-cli jq
+          mkdir -p ~/.databricks
+          cat > ~/.databricks/config <<EOF
+[DEFAULT]
+host = $DATABRICKS_HOST
+token = $DATABRICKS_TOKEN
+EOF
+        '''
+      }
+    }
+
+    stage('Sync repo into Databricks Repos') {
+      steps {
+        sh '''
+          . venv/bin/activate
+          # Create or update a Databricks Repo pointing to your Git repo
+          # If your repo is on GitHub, set GIT_URL env in Jenkins, or hardcode it here:
+          if ! databricks repos get --path "/$REPO_WS_PATH" >/dev/null 2>&1; then
+            databricks repos create --url "$GIT_URL" --provider gitHub --path "/$REPO_WS_PATH"
+          else
+            databricks repos update --path "/$REPO_WS_PATH" --branch "main"
+          fi
+        '''
+      }
+    }
+
+    // === Pick ONE of these two deploy stages ===
+
+    stage('Deploy Job (Track A: SQL Warehouse)') {
+      when { expression { return fileExists('jobs/job_sql_warehouse.json') } }
+      steps {
+        sh '''
+          . venv/bin/activate
+          JOB_NAME="demo_sql_prod"
+          JOB_ID=$(databricks jobs list --output JSON | jq -r \
+            --arg n "$JOB_NAME" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
+
+          if [ -z "$JOB_ID" ]; then
+            databricks jobs create --json-file jobs/job_sql_warehouse.json
+          else
+            databricks jobs reset --job-id "$JOB_ID" --json-file jobs/job_sql_warehouse.json
+          fi
+        '''
+      }
+    }
+
+    stage('Deploy Job (Track B: Notebook on cluster)') {
+      when { expression { return fileExists('jobs/job_notebook_cluster.json') } }
+      steps {
+        sh '''
+          . venv/bin/activate
+          JOB_NAME="demo_notebook_prod"
+          JOB_ID=$(databricks jobs list --output JSON | jq -r \
+            --arg n "$JOB_NAME" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
+
+          if [ -z "$JOB_ID" ]; then
+            databricks jobs create --json-file jobs/job_notebook_cluster.json
+          else
+            databricks jobs reset --job-id "$JOB_ID" --json-file jobs/job_notebook_cluster.json
+          fi
+        '''
+      }
+    }
+
+    stage('Run Job') {
+      steps {
+        sh '''
+          . venv/bin/activate
+          # Try SQL job first, else notebook job
+          for NAME in demo_sql_prod demo_notebook_prod; do
+            JOB_ID=$(databricks jobs list --output JSON | jq -r \
+               --arg n "$NAME" '.jobs[]?|select(.settings.name==$n)|.job_id' | head -1)
+            if [ -n "$JOB_ID" ]; then
+              echo "Triggering $NAME ($JOB_ID)"
+              databricks jobs run-now --job-id "$JOB_ID"
+              exit 0
+            fi
+          done
+          echo "No job found to run"; exit 1
+        '''
+      }
+    }
+  }
+}
