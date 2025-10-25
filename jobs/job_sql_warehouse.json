@@ -3,13 +3,14 @@
   "max_concurrent_runs": 1,
   "tasks": [
     {
-      "task_key": "run_sql",
+      "task_key": "run_sql_query",
       "sql_task": {
-        "warehouse_id": "c2cf2b5947fcf5e6",
-        "query_id": "2619633994000120"
+        "query": {
+          "query_id": "2619633994000120"
+        },
+        "warehouse_id": "c2cf2b5947fcf5e6"
       },
       "timeout_seconds": 3600
     }
   ]
 }
-
