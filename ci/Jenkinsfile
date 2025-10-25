@@ -5,7 +5,7 @@ pipeline {
     DATABRICKS_TOKEN = credentials('DB_TOKEN_PROD')
   }
   stages {
-    tage('Setup CLI') {
+    stage('Setup CLI') {
   steps {
     sh '''
       python3 -m venv venv
